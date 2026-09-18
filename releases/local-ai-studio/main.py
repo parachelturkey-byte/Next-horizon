@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from tkinter import ttk, messagebox
 
-VERSION="0.5.0"
+VERSION="0.6.0"
 APPDATA=Path(os.getenv("APPDATA") or Path.home())/"NextHorizonLocalAIStudio"
 CONFIG=APPDATA/"settings.json"; EVENTS=APPDATA/"events.log"
 ROOT=Path(r"C:\NextHorizon\LocalAIStudio")
@@ -166,8 +166,12 @@ class Studio(tk.Tk):
     return ("Подключено" if data.get("public_enabled") else "Подключено, PUBLIC выключен","Telegram настроен. Публичный процесс сейчас безопасно выключен.")
    return ("Не подключено","Нужно проверить Telegram credentials/OWNER.")
   if key=="website": return ("Работает","Сайт Next Horizon доступен. Публичная автоматика выключена.")
-  if key=="instagram": return ("Не подключено","Production-коннектор Instagram ещё не установлен.")
-  if key=="tiktok": return ("Не подключено","Production-коннектор TikTok ещё не установлен.")
+  if key=="instagram":
+   if status=="configured": return ("Настроено, нужен тест","Credentials сохранены, но публикация ещё не включена. Следующий шаг — официальный API-тест.")
+   return ("Не подключено","В текущем production нет сохранённых Instagram credentials.")
+  if key=="tiktok":
+   if status=="configured": return ("Настроено, нужен тест","Credentials сохранены, но прямой publisher ещё не включён. Сначала безопасный draft/inbox test.")
+   return ("Не подключено","В текущем production нет сохранённых TikTok credentials.")
   return ("Не подключено","Статус неизвестен.")
 
  def channels_page(self):
@@ -291,6 +295,7 @@ class Studio(tk.Tk):
   ttk.Label(self.body,text="PUBLIC: ВЫКЛ",style="Good.TLabel").pack(anchor="w",pady=4)
   ttk.Label(self.body,text="Автоматическая публикация: ВЫКЛ",style="Good.TLabel").pack(anchor="w",pady=4)
   ttk.Label(self.body,text="Платный AI: ВЫКЛ",style="Good.TLabel").pack(anchor="w",pady=4)
+  ttk.Label(self.body,text="Обновления Studio: АВТОМАТИЧЕСКИ",style="Good.TLabel").pack(anchor="w",pady=4)
   ttk.Separator(self.body).pack(fill="x",pady=12)
   ttk.Label(self.body,text="Если что-то перестало работать, просто нажми «Проверить всё» на главной.").pack(anchor="w")
  def advanced(self):
@@ -319,8 +324,10 @@ class Studio(tk.Tk):
      if hasattr(self,"progress_text"):self.progress_text.config(text=e[1])
     elif kind=="download_progress":
      if hasattr(self,"progress_text"):
-      mb=e[2]/1024/1024; self.progress_text.config(text=f"{e[1]}: скачано {mb:,.0f} МБ")
-      self.progress.config(value=(int(time.time())%90)+5)
+      mb=e[2]/1024/1024
+      self.progress_text.config(text=f"{e[1]}: скачано {mb:,.0f} МБ")
+      expected={"ace_turbo":4500,"ace_qwen":1200,"ace_vae":800}.get(e[1],0)
+      if expected:self.progress.config(value=min(99,(mb/expected)*100))
     elif kind=="download_done":
      if hasattr(self,"progress_text"):self.progress_text.config(text=e[1]); self.progress.config(value=100 if "Готово" in e[1] else 0)
      if hasattr(self,"download_btn"):self.download_btn.config(state="normal")
